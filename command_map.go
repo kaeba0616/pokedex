@@ -1,26 +1,39 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"io"
-	"log"
-	"net/http"
 )
 
-func commandMap(cfg *config) error {
-	res, err := http.Get("https://pokeapi.co/api/v2/location/")
+func commandMap(cfg *config, arg ...string) error {
+	locationResp, err := cfg.pokeapiClient.ListLocations(cfg.nextLocationsURL)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	body, err := io.ReadAll(res.Body)
-	res.Body.Close()
-	if res.StatusCode > 299 {
-		log.Fatal("response failed StatusCode: %d \n Body: %s\n ", res.StatusCode, res.Body)
-	}
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%s", body)
 
+	cfg.nextLocationsURL = locationResp.Next
+	cfg.preLocationsURL = locationResp.Previous
+
+	for _, loc := range locationResp.Results {
+		fmt.Println(loc.Name)
+	}
+	return nil
+}
+
+func commandMapb(cfg *config, args ...string) error {
+	if cfg.preLocationsURL == nil {
+		return errors.New("you're on the first page")
+	}
+	locationResp, err := cfg.pokeapiClient.ListLocations(cfg.preLocationsURL)
+	if err != nil {
+		return err
+	}
+
+	cfg.nextLocationsURL = locationResp.Next
+	cfg.preLocationsURL = locationResp.Previous
+
+	for _, loc := range locationResp.Results {
+		fmt.Println(loc.Name)
+	}
 	return nil
 }
